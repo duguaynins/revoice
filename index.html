@@ -162,6 +162,15 @@ const download=document.getElementById("downloadLink");
 
 startBtn.onclick=async()=>{
 
+    if(!window.isSecureContext){
+        status.innerText="ERROR: NOT SECURE CONTEXT (HTTPS/LOCALHOST NEEDED)";
+        return;
+    }
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+        status.innerText="ERROR: MEDIA DEVICES API UNAVAILABLE";
+        return;
+    }
+
     try{
 
         const stream=await navigator.mediaDevices.getUserMedia({
@@ -208,7 +217,13 @@ startBtn.onclick=async()=>{
 
         console.error(e);
 
-        status.innerText="ERROR: MICROPHONE ACCESS";
+        const msg={
+            NotAllowedError:"PERMISSION DENIED / BLOCKED BY BROWSER",
+            NotFoundError:"NO MICROPHONE DEVICE FOUND",
+            NotReadableError:"MICROPHONE BUSY / LOCKED",
+            AbortError:"ABORTED",
+        }[e.name]||e.message||"UNKNOWN ERROR";
+        status.innerText="ERROR: "+msg;
 
     }
 
