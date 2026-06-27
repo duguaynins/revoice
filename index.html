@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NINS / RECORDER.SYS</title>
+
+<style>
+body{
+    background:#fff;
+    color:#000;
+    font-family:"Courier New",monospace;
+    margin:0;
+    padding:30px;
+}
+
+.window{
+    width:500px;
+    max-width:90%;
+    margin:auto;
+    border:3px solid #000;
+}
+
+.titlebar{
+    background:#000;
+    color:#fff;
+    padding:8px;
+    font-weight:bold;
+}
+
+.content{
+    padding:20px;
+}
+
+.line{
+    border-top:2px solid #000;
+    margin:15px 0;
+}
+
+button{
+    background:#fff;
+    color:#000;
+    border:2px solid #000;
+    padding:8px 18px;
+    font-family:inherit;
+    cursor:pointer;
+    margin-right:8px;
+}
+
+button:hover{
+    background:#000;
+    color:#fff;
+}
+
+button:disabled{
+    opacity:.4;
+    cursor:not-allowed;
+}
+
+audio{
+    width:100%;
+    border:2px solid #000;
+    margin-top:15px;
+}
+
+a{
+    display:inline-block;
+    margin-top:15px;
+    color:#000;
+    border:2px solid #000;
+    padding:8px 12px;
+    text-decoration:none;
+}
+
+a:hover{
+    background:#000;
+    color:#fff;
+}
+
+.status{
+    margin-bottom:15px;
+}
+</style>
+</head>
+<body>
+
+<div class="window">
+
+<div class="titlebar">
+NINS / RECORDER.SYS
+</div>
+
+<div class="content">
+
+<div class="status" id="status">
+ADMIN: DUGUAYNINS
+</div>
+
+<div class="line"></div>
+
+<button id="startBtn">[ REC ]</button>
+<button id="stopBtn" disabled>[ STOP ]</button>
+<button id="reverseBtn" disabled>[ REVERSE ]</button>
+
+<div class="line"></div>
+
+<audio id="audioPlayer" controls></audio>
+
+<br>
+
+<a id="downloadLink" style="display:none">
+DOWNLOAD FILE
+</a>
+
+</div>
+
+</div>
+
+<script>
+
+let recorder;
+let chunks=[];
+let originalBlob=null;
+let reversedBlob=null;
+let isReversed=false;
+
+const audioContext=new(window.AudioContext||window.webkitAudioContext)();
+
+const startBtn=document.getElementById("startBtn");
+const stopBtn=document.getElementById("stopBtn");
+const reverseBtn=document.getElementById("reverseBtn");
+
+const audio=document.getElementById("audioPlayer");
+const status=document.getElementById("status");
+const download=document.getElementById("downloadLink");
+
+startBtn.onclick=async()=>{
+
+    try{
+
+        const stream=await navigator.mediaDevices.getUserMedia({
+            audio:true
+        });
+
+        chunks=[];
+
+        recorder=new MediaRecorder(stream);
+
+        recorder.ondataavailable=e=>{
+            chunks.push(e.data);
+        };
+
+        recorder.onstop=()=>{
+
+            originalBlob=new Blob(chunks,{
+                type:"audio/webm"
+            });
+
+            const url=URL.createObjectURL(originalBlob);
+
+            audio.src=url;
+
+            download.href=url;
+            download.download=Date.now()+"+.webm";
+            download.style.display="inline-block";
+
+            reverseBtn.disabled=false;
+
+            status.innerText="STATUS: SAVED";
+
+            stream.getTracks().forEach(track=>track.stop());
+
+        };
+
+        recorder.start();
+
+        status.innerText="STATUS: RECORDING...";
+
+        startBtn.disabled=true;
+        stopBtn.disabled=false;
+
+    }catch(e){
+
+        console.error(e);
+
+        status.innerText="ERROR: MICROPHONE ACCESS";
+
+    }
+
+};
+
+stopBtn.onclick=()=>{
+
+    recorder.stop();
+
+    startBtn.disabled=false;
+    stopBtn.disabled=true;
+
+    status.innerText="STATUS: STOPPED";
+
+};
+
+reverseBtn.onclick=async()=>{
+
+    if(!originalBlob)return;
+
+    if(isReversed){
+
+        const url=URL.createObjectURL(originalBlob);
+        audio.src=url;
+        download.href=url;
+        download.download=Date.now()+"+.webm";
+
+        status.innerText="STATUS: NORMAL [+]";
+        isReversed=false;
+        return;
+
+    }
+
+    status.innerText="STATUS: REVERSING...";
+
+    const arrayBuffer=await originalBlob.arrayBuffer();
+
+    const buffer=await audioContext.decodeAudioData(arrayBuffer);
+
+    const reversed=audioContext.createBuffer(
+        buffer.numberOfChannels,
+        buffer.length,
+        buffer.sampleRate
+    );
+
+    for(let ch=0;ch<buffer.numberOfChannels;ch++){
+
+        const input=buffer.getChannelData(ch);
+        const output=reversed.getChannelData(ch);
+
+        for(let i=0;i<input.length;i++){
+
+            output[i]=input[input.length-1-i];
+
+        }
+
+    }
+
+    reversedBlob=audioBufferToWav(reversed);
+
+    const url=URL.createObjectURL(reversedBlob);
+
+    audio.src=url;
+
+    download.href=url;
+    download.download=Date.now()+"-.wav";
+
+    status.innerText="STATUS: REVERSED [-]";
+    isReversed=true;
+
+};
+
+function audioBufferToWav(buffer){
+
+    const numChannels=buffer.numberOfChannels;
+    const sampleRate=buffer.sampleRate;
+    const samples=buffer.length;
+
+    const dataLength=samples*numChannels*2;
+
+    const arrayBuffer=new ArrayBuffer(44+dataLength);
+
+    const view=new DataView(arrayBuffer);
+
+    function writeString(offset,string){
+
+        for(let i=0;i<string.length;i++){
+
+            view.setUint8(offset+i,string.charCodeAt(i));
+
+        }
+
+    }
+
+    writeString(0,"RIFF");
+    view.setUint32(4,36+dataLength,true);
+    writeString(8,"WAVE");
+    writeString(12,"fmt ");
+    view.setUint32(16,16,true);
+    view.setUint16(20,1,true);
+    view.setUint16(22,numChannels,true);
+    view.setUint32(24,sampleRate,true);
+    view.setUint32(28,sampleRate*numChannels*2,true);
+    view.setUint16(32,numChannels*2,true);
+    view.setUint16(34,16,true);
+    writeString(36,"data");
+    view.setUint32(40,dataLength,true);
+
+    let offset=44;
+
+    for(let i=0;i<samples;i++){
+
+        for(let ch=0;ch<numChannels;ch++){
+
+            let sample=buffer.getChannelData(ch)[i];
+
+            sample=Math.max(-1,Math.min(1,sample));
+
+            view.setInt16(
+                offset,
+                sample<0?sample*32768:sample*32767,
+                true
+            );
+
+            offset+=2;
+
+        }
+
+    }
+
+    return new Blob(
+        [arrayBuffer],
+        {type:"audio/wav"}
+    );
+
+}
+
+</script>
+
+</body>
+</html>
