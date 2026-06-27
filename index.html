@@ -100,7 +100,9 @@ ADMIN: DUGUAYNINS
 
 <button id="startBtn">[ REC ]</button>
 <button id="stopBtn" disabled>[ STOP ]</button>
+<button id="importBtn">[ IMPORT ]</button>
 <button id="reverseBtn" disabled>[ REVERSE ]</button>
+<input type="file" id="fileInput" accept="audio/*" style="display:none">
 
 <div class="line"></div>
 
@@ -121,13 +123,37 @@ DOWNLOAD FILE
 let recorder;
 let chunks=[];
 let originalBlob=null;
+let normalBlob=null;
 let reversedBlob=null;
 let isReversed=false;
+let originalFileName="";
+let currentObjectUrl=null;
 
-const audioContext=new(window.AudioContext||window.webkitAudioContext)();
+let audioContext=null;
+
+async function getAudioContext(){
+    if(!audioContext){
+        audioContext=new(window.AudioContext||window.webkitAudioContext)();
+    }
+    if(audioContext.state==="suspended"){
+        await audioContext.resume();
+    }
+    return audioContext;
+}
+
+function setAudioSource(blob,filename){
+    if(currentObjectUrl)URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl=URL.createObjectURL(blob);
+    audio.src=currentObjectUrl;
+    download.href=currentObjectUrl;
+    download.download=filename;
+    download.style.display="inline-block";
+}
 
 const startBtn=document.getElementById("startBtn");
 const stopBtn=document.getElementById("stopBtn");
+const importBtn=document.getElementById("importBtn");
+const fileInput=document.getElementById("fileInput");
 const reverseBtn=document.getElementById("reverseBtn");
 
 const audio=document.getElementById("audioPlayer");
@@ -155,14 +181,13 @@ startBtn.onclick=async()=>{
             originalBlob=new Blob(chunks,{
                 type:"audio/webm"
             });
+            normalBlob=originalBlob;
+            reversedBlob=null;
+            isReversed=false;
 
-            const url=URL.createObjectURL(originalBlob);
+            originalFileName=Date.now()+".webm";
 
-            audio.src=url;
-
-            download.href=url;
-            download.download=Date.now()+"+.webm";
-            download.style.display="inline-block";
+            setAudioSource(originalBlob,originalFileName);
 
             reverseBtn.disabled=false;
 
@@ -191,6 +216,8 @@ startBtn.onclick=async()=>{
 
 stopBtn.onclick=()=>{
 
+    if(!recorder||recorder.state==="inactive")return;
+
     recorder.stop();
 
     startBtn.disabled=false;
@@ -202,14 +229,13 @@ stopBtn.onclick=()=>{
 
 reverseBtn.onclick=async()=>{
 
-    if(!originalBlob)return;
+    if(!normalBlob)return;
+
+    const ctx=await getAudioContext();
 
     if(isReversed){
 
-        const url=URL.createObjectURL(originalBlob);
-        audio.src=url;
-        download.href=url;
-        download.download=Date.now()+"+.webm";
+        setAudioSource(normalBlob,originalFileName);
 
         status.innerText="STATUS: NORMAL [+]";
         isReversed=false;
@@ -217,39 +243,39 @@ reverseBtn.onclick=async()=>{
 
     }
 
-    status.innerText="STATUS: REVERSING...";
+    if(!reversedBlob){
 
-    const arrayBuffer=await originalBlob.arrayBuffer();
+        status.innerText="STATUS: REVERSING...";
 
-    const buffer=await audioContext.decodeAudioData(arrayBuffer);
+        const arrayBuffer=await normalBlob.arrayBuffer();
 
-    const reversed=audioContext.createBuffer(
-        buffer.numberOfChannels,
-        buffer.length,
-        buffer.sampleRate
-    );
+        const buffer=await ctx.decodeAudioData(arrayBuffer);
 
-    for(let ch=0;ch<buffer.numberOfChannels;ch++){
+        const reversed=ctx.createBuffer(
+            buffer.numberOfChannels,
+            buffer.length,
+            buffer.sampleRate
+        );
 
-        const input=buffer.getChannelData(ch);
-        const output=reversed.getChannelData(ch);
+        for(let ch=0;ch<buffer.numberOfChannels;ch++){
 
-        for(let i=0;i<input.length;i++){
+            const input=buffer.getChannelData(ch);
+            const output=reversed.getChannelData(ch);
 
-            output[i]=input[input.length-1-i];
+            for(let i=0;i<input.length;i++){
+
+                output[i]=input[input.length-1-i];
+
+            }
 
         }
 
+        reversedBlob=audioBufferToWav(reversed);
+
     }
 
-    reversedBlob=audioBufferToWav(reversed);
-
-    const url=URL.createObjectURL(reversedBlob);
-
-    audio.src=url;
-
-    download.href=url;
-    download.download=Date.now()+"-.wav";
+    const reversedName=originalFileName.replace(/\.[^.]+$/,"")+"-reversed.wav";
+    setAudioSource(reversedBlob,reversedName);
 
     status.innerText="STATUS: REVERSED [-]";
     isReversed=true;
@@ -320,6 +346,50 @@ function audioBufferToWav(buffer){
     );
 
 }
+
+importBtn.onclick=()=>{
+    fileInput.click();
+};
+
+fileInput.onchange=async(e)=>{
+
+    const file=e.target.files[0];
+    if(!file)return;
+
+    status.innerText="STATUS: IMPORTING...";
+
+    try{
+
+        const ctx=await getAudioContext();
+
+        const arrayBuffer=await file.arrayBuffer();
+        const audioBuffer=await ctx.decodeAudioData(arrayBuffer);
+
+        const wavBlob=audioBufferToWav(audioBuffer);
+
+        normalBlob=wavBlob;
+        originalBlob=wavBlob;
+        reversedBlob=null;
+        isReversed=false;
+
+        originalFileName=file.name.replace(/\.[^.]+$/,"")+".wav";
+
+        setAudioSource(wavBlob,originalFileName);
+
+        reverseBtn.disabled=false;
+
+        status.innerText='STATUS: IMPORTED "'+file.name+'"';
+
+    }catch(err){
+
+        console.error(err);
+        status.innerText="ERROR: COULD NOT DECODE AUDIO";
+
+    }
+
+    fileInput.value="";
+
+};
 
 </script>
 
