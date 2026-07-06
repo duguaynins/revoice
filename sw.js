@@ -1,31 +1,28 @@
-///在這裡完成PWA的控制
-
-///v0
 self.addEventListener('install', event => {
-  console.log('Service Worker install');
-  self.skipWaiting(); // 立即進入 activate
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  console.log('Service Worker activate');
-  event.waitUntil(clients.claim()); // 接管所有頁面
+  event.waitUntil(clients.claim());
 });
 
 self.addEventListener('fetch', event => {
-});
-/*
-self.addEventListener('fetch', event => {
-  console.log('Service Worker fetch');
   event.respondWith(
-    fetch(event.request) // 直接走網路
-      .catch(() => caches.match(event.request)) // 網路失敗時才用快取
+    (async () => {
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+      try {
+        const response = await fetch(event.request);
+        if (response && response.status === 200 && event.request.method === 'GET') {
+          const clone = response.clone();
+          const cache = await caches.open(String(Date.now()));
+          cache.put(event.request, clone);
+        }
+        return response;
+      } catch {
+        const fallback = await caches.match('./index.html');
+        return fallback || new Response('Offline', { status: 503 });
+      }
+    })()
   );
 });
-
-self.addEventListener('push', event => {
-});  ///20260307
-
-self.addEventListener("notificationclick", function (event) {
-});  */
-
-const display = "minimal-ui, browser, standalone, fullscreen"; 
