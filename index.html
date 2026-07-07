@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NINS / RECORDER.SYS</title>
 
-
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#FFFFFF">
 <script>
@@ -14,117 +13,64 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
-
-
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/nes.css/css/nes.min.css">
 
 <style>
 body{
     background:#fff;
-    color:#000;
-    font-family:"Courier New",monospace;
-    margin:0;
     padding:30px;
 }
 
-.window{
-    width:500px;
-    max-width:90%;
-    margin:auto;
-    border:3px solid #000;
-}
-
-.titlebar{
-    background:#000;
-    color:#fff;
-    padding:8px;
-    font-weight:bold;
-}
-
-.content{
-    padding:20px;
-}
-
-.line{
-    border-top:2px solid #000;
-    margin:15px 0;
-}
-
-button{
-    background:#fff;
-    color:#000;
-    border:2px solid #000;
-    padding:8px 18px;
-    font-family:inherit;
-    cursor:pointer;
-    margin-right:8px;
-}
-
-button:hover{
-    background:#000;
-    color:#fff;
-}
-
-button:disabled{
-    opacity:.4;
-    cursor:not-allowed;
+.container{
+    max-width:520px;
+    margin:0 auto;
 }
 
 audio{
     width:100%;
-    border:2px solid #000;
-    margin-top:15px;
 }
 
-a{
-    display:inline-block;
-    margin-top:15px;
-    color:#000;
-    border:2px solid #000;
-    padding:8px 12px;
-    text-decoration:none;
+audio, .nes-btn:not(:last-of-type){
+    margin-bottom:12px;
 }
 
-a:hover{
-    background:#000;
-    color:#fff;
+#status{
+    margin-bottom:1.5rem;
 }
 
-.status{
-    margin-bottom:15px;
+input[type="file"]{
+    display:none;
 }
 </style>
 </head>
 <body>
 
-<div class="window">
+<div class="container">
 
-<div class="titlebar">
-NINS / RECORDER.SYS
-</div>
+<div class="nes-container is-rounded with-title">
+<p class="title">NINS / RECORDER.SYS</p>
 
-<div class="content">
+<p id="status">ADMIN: DUGUAYNINS</p>
 
-<div class="status" id="status">
-ADMIN: DUGUAYNINS
-</div>
+<button class="nes-btn" id="importBtn">[ IMPORT ]</button>
+<hr>
 
-<div class="line"></div>
+<button class="nes-btn is-primary" id="startBtn">[ REC ]</button>
+<button class="nes-btn" id="stopBtn" disabled>[ STOP ]</button>
+<button class="nes-btn" id="reverseBtn" disabled>[ REVERSE ]</button>
+<input type="file" id="fileInput" accept="audio/*">
 
-<button id="startBtn">[ REC ]</button>
-<button id="stopBtn" disabled>[ STOP ]</button>
-<button id="importBtn">[ IMPORT ]</button>
-<button id="reverseBtn" disabled>[ REVERSE ]</button>
-<input type="file" id="fileInput" accept="audio/*" style="display:none">
+<hr>
 
-<div class="line"></div>
-
+<div class="nes-container is-dark is-rounded with-title">
+<p class="title">PLAYER</p>
 <audio id="audioPlayer" controls></audio>
+</div>
 
 <br>
 
-<a id="downloadLink" style="display:none">
-DOWNLOAD FILE
-</a>
+<a class="nes-btn" id="downloadLink" style="display:none">DOWNLOAD FILE</a>
 
 </div>
 
@@ -206,7 +152,7 @@ startBtn.onclick=async()=>{
             reversedBlob=null;
             isReversed=false;
 
-            originalFileName=Date.now()+".webm";
+            originalFileName=Date.now()+".webm";  ///+
 
             setAudioSource(originalBlob,originalFileName);
 
@@ -301,7 +247,7 @@ reverseBtn.onclick=async()=>{
 
     }
 
-    const reversedName=originalFileName.replace(/\.[^.]+$/,"")+"-reversed.wav";
+    const reversedName=originalFileName.replace(/\.[^.]+$/,"")+"-.wav";
     setAudioSource(reversedBlob,reversedName);
 
     status.innerText="STATUS: REVERSED [-]";
@@ -399,13 +345,14 @@ fileInput.onchange=async(e)=>{
         reversedBlob=null;
         isReversed=false;
 
-        originalFileName=file.name.replace(/\.[^.]+$/,"")+".wav";
+        originalFileName=file.name.replace(/\.[^.]+$/,"")+".wav";  ///+
 
         setAudioSource(wavBlob,originalFileName);
 
         reverseBtn.disabled=false;
 
-        status.innerText='STATUS: IMPORTED "'+file.name+'"';
+        ///status.innerText='STATUS: IMPORTED "'+file.name+'"';
+        status.innerText="STATUS: OPENED";
 
     }catch(err){
 
