@@ -17,63 +17,134 @@ if ('serviceWorker' in navigator) {
 <link rel="stylesheet" href="https://unpkg.com/nes.css/css/nes.min.css">
 
 <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
 body{
     background:#fff;
-    padding:30px;
+    color:#000;
+    min-height:100vh;
+    padding:16px;
+    font-family:'Press Start 2P','Courier New',monospace;
+    font-size:12px;
+    image-rendering:pixelated;
 }
+::selection { background: #000; color: #fff; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #eee; }
+::-webkit-scrollbar-thumb { background: #000; border-radius: 0; }
 
-.container{
+.nes-btn {
+    font-family:'Press Start 2P','Courier New',monospace;
+    font-size:10px;
+    padding:4px 12px;
+    touch-action:manipulation;
+}
+.nes-btn::after { display:none; }
+
+.nins-container{
     max-width:520px;
     margin:0 auto;
 }
 
 audio{
+    display:none;
+}
+
+.player-wrap {
+    display:flex;
+    align-items:center;
+    gap:8px;
     width:100%;
 }
-
-audio, .nes-btn:not(:last-of-type){
-    margin-bottom:12px;
+.player-wrap .pbtn {
+    font-family:'Press Start 2P','Courier New',monospace;
+    font-size:14px;
+    width:36px;height:36px;
+    border:2px solid #fff;
+    background:transparent;
+    color:#fff;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    touch-action:manipulation;
+}
+.player-wrap .pbtn:hover {
+    background:#fff;
+    color:#000;
+}
+.player-wrap .bar {
+    flex:1;
+    height:24px;
+    border:2px solid #fff;
+    cursor:pointer;
+    position:relative;
+}
+.player-wrap .bar .fill {
+    height:100%;
+    width:0%;
+    background:#fff;
+    pointer-events:none;
+}
+.player-wrap .time {
+    font-size:8px;
+    white-space:nowrap;
+    flex-shrink:0;
+    font-family:'Courier New',monospace;
+    min-width:70px;
+    text-align:right;
+    color:#fff;
 }
 
+
 #status{
-    margin-bottom:1.5rem;
+    margin-bottom:1rem;
 }
 
 input[type="file"]{
     display:none;
 }
+
 </style>
 </head>
 <body>
 
-<div class="container">
+<div class="nins-container">
 
-<div class="nes-container is-rounded with-title">
-<p class="title">NINS / RECORDER.SYS</p>
+<div class="nes-container not-rounded with-title">
+    <p class="title">NINS / RECORDER.SYS</p>
 
-<p id="status">ADMINS: DUGUAYNINS</p>
+    <div class="button-group">
+        <button class="nes-btn is-primary" id="startBtn">[REC]</button>
+        <button class="nes-btn" id="stopBtn" disabled>[STOP]</button>
+        <button class="nes-btn" id="importBtn">[IMPORT]</button>
+    </div>
 
-<button class="nes-btn" id="importBtn">[ IMPORT ]</button>
-<hr>
 
-<button class="nes-btn is-primary" id="startBtn">[ REC ]</button>
-<button class="nes-btn" id="stopBtn" disabled>[ STOP ]</button>
-<button class="nes-btn" id="reverseBtn" disabled>[ REVERSE ]</button>
-<input type="file" id="fileInput" accept="audio/*">
+    <div class="nes-container is-dark is-rounded with-title">
+        <p class="title">PLAYER</p>
+        <span class="title" id="timeDisplay">0:00 / 0:00</span>
+        <audio id="audioPlayer"></audio>
+        <div class="player-wrap">
+            <div class="bar" id="bar">
+                <div class="fill" id="fill"></div>
+            </div>
+            
+        </div>
+    </div>
 
-<hr>
+    <div class="button-group">
+        <button class="nes-btn" id="playBtn">[>]</button>
+        <button class="nes-btn" id="reverseBtn" disabled>[REVERSE]</button>
+        <a class="nes-btn" id="downloadLink" style="display:none">[DOWNLOAD]</a>
+        <input type="file" id="fileInput" accept="audio/*">
+    </div>
+    <p class="nes-text" id="status">ADMINS: DUGUAYNINS</p>
 
-<div class="nes-container is-dark is-rounded with-title" style="
-    padding-left: 5px;
-    padding-right: 5px;
-">
-<p class="title">PLAYER</p>
-<audio id="audioPlayer" controls></audio>
 </div>
 
 <br>
 
-<a class="nes-btn" id="downloadLink" style="display:none">[ DOWNLOAD ]</a>
 
 </div>
 
@@ -120,6 +191,44 @@ const reverseBtn=document.getElementById("reverseBtn");
 const audio=document.getElementById("audioPlayer");
 const status=document.getElementById("status");
 const download=document.getElementById("downloadLink");
+
+const playBtn=document.getElementById("playBtn");
+const fill=document.getElementById("fill");
+const bar=document.getElementById("bar");
+const timeDisplay=document.getElementById("timeDisplay");
+
+function fmt(s){
+    const m=Math.floor(s/60);
+    const sec=Math.floor(s%60);
+    return m+":"+(sec<10?"0":"")+sec;
+}
+
+function upd(){
+    if(!audio.duration||isNaN(audio.duration)){
+        fill.style.width="0%";
+        timeDisplay.textContent="0:00 / 0:00";
+        return;
+    }
+    fill.style.width=(audio.currentTime/audio.duration*100)+"%";
+    timeDisplay.textContent=fmt(audio.currentTime)+" / "+fmt(audio.duration);
+}
+
+playBtn.addEventListener("click",()=>{
+    if(audio.paused) audio.play();
+    else audio.pause();
+});
+
+audio.addEventListener("play",()=>{playBtn.textContent="■";});
+audio.addEventListener("pause",()=>{playBtn.textContent="▶";});
+audio.addEventListener("ended",()=>{playBtn.textContent="▶";});
+audio.addEventListener("timeupdate",upd);
+audio.addEventListener("loadedmetadata",upd);
+
+bar.addEventListener("click",(e)=>{
+    if(!audio.duration||isNaN(audio.duration))return;
+    const r=bar.getBoundingClientRect();
+    audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;
+});
 
 startBtn.onclick=async()=>{
 
