@@ -18,7 +18,8 @@ self.addEventListener('fetch', event => {
           const clone = response.clone();
           const cache = await caches.open("nins");
           
-          cache.put(event.request, clone); 
+          ///cache.put(event.request, clone); 
+          await cache.put(event.request, clone);
         }
         return response;
       } catch {
