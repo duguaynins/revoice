@@ -115,9 +115,9 @@ input[type="file"]{
     <p class="title">NINS / RECORDER.SYS</p>
 
     <div class="button-group">
-        <button class="nes-btn is-primary" id="startBtn">[REC]</button>
-        <button class="nes-btn" id="stopBtn" disabled>[STOP]</button>
-        <button class="nes-btn" id="importBtn">[IMPORT]</button>
+        <button class="nes-btn is-warning" id="importBtn">[IMPORT]</button>
+        <button class="nes-btn is-error" id="startBtn">[REC]</button>
+        <button class="nes-btn is-error" id="stopBtn" disabled>[STOP]</button>
     </div>
 
 
@@ -134,8 +134,8 @@ input[type="file"]{
     </div>
 
     <div class="button-group">
-        <button class="nes-btn" id="playBtn">[>]</button>
-        <button class="nes-btn" id="reverseBtn" disabled>[REVERSE]</button>
+        <button class="nes-btn is-success" id="playBtn">[>]</button>
+        <button class="nes-btn is-primary" id="reverseBtn" disabled>[REVERSE]</button>
         <a class="nes-btn" id="downloadLink" style="display:none">[DOWNLOAD]</a>
         <input type="file" id="fileInput" accept="audio/*">
     </div>
